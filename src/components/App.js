@@ -1,45 +1,79 @@
-import React, { useState, useEffect } from "react";
-import "./App.css";
+import React, { useReducer, useEffect } from "react";
+import "../App.css";
 import Header from "./Header";
 import Movie from "./Movie";
+import spinner from "../assets/ajax-lader.gif";
 import Search from "./Search";
+import { initialState, reducer } from "../store/reducer";
+import axios from "axios";
 
-function App() {
-  const [loading, setLoading] = useState(true);
-  const [movies, setMovies] = useState([]);
-  const [errorMessage, setErrorMessage] = useState(null);
+const MOVIE_API_URL = "https://www.omdbapi.com/?s=man&apikey=55b90385";
+
+const App = () => {
+  const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    fetch(MOVIE_API_URL)
-      .then(response => response.json())
-      .then(jsonResponse => {
-        setMovies(jsonResponse.Search);
-        setLoading(false);
+    axios.get(MOVIE_API_URL).then(jsonResponse => {
+      dispatch({
+        type: "SEARCH_MOVIES_SUCCESS",
+        payload: jsonResponse.data.Search
       });
+    });
   }, []);
 
-  const search = searchValue => {
-    setLoading(true);
-    setErrorMessage(null);
+  // you can add this to the onClick listener of the Header component
+  // const refreshPage = () => {
+  //   window.location.reload();
+  // };
 
-    fetch(`http://www.omdbapi.com/?i=${searchValue}&apikey=55b90385`)
-      .then(response => response.json())
-      .then(jsonResponse => {
-        if (jsonResponse === "True") {
-          setMovies(jsonResponse.Search);
-          setLoading(false);
+  const search = searchValue => {
+    dispatch({
+      type: "SEARCH_MOVIES_REQUEST"
+    });
+
+    axios(`https://www.omdbapi.com/?s=${searchValue}&apikey=55b90385`).then(
+      jsonResponse => {
+        if (jsonResponse.data.Response === "True") {
+          dispatch({
+            type: "SEARCH_MOVIES_SUCCESS",
+            payload: jsonResponse.data.Search
+          });
         } else {
-          setErrorMessage(jsonResponse.Error);
-          setLoading(false);
+          dispatch({
+            type: "SEARCH_MOVIES_FAILURE",
+            error: jsonResponse.data.Error
+          });
         }
-      });
+      }
+    );
   };
+
+  const { movies, errorMessage, loading } = state;
+
+  const retrievedMovies =
+    loading && !errorMessage ? (
+      <img className="spinner" src={spinner} alt="Loading spinner" />
+    ) : errorMessage ? (
+      <div className="errorMessage">{errorMessage}</div>
+    ) : (
+      movies.map((movie, index) => (
+        <Movie key={`${index}-${movie.Title}`} movie={movie} />
+      ))
+    );
 
   return (
     <div className="App">
-      <Header text="MOVIES" />
+      <div className="m-container">
+        <Header text="HOOKED" />
+
+        <Search search={search} />
+
+        <p className="App-intro">Sharing a few of our favourite movies</p>
+
+        <div className="movies">{retrievedMovies}</div>
+      </div>
     </div>
   );
-}
+};
 
 export default App;
